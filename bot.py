@@ -2,6 +2,7 @@ import discord, json, os, sqlite3, ast, info
 from discord.ext import commands, tasks, menus
 from datetime import datetime
 from itertools import cycle
+from discord.utils import get
 
 async def get_prefix(bot, message):
     with open('prefixes.json', 'r') as f:
@@ -11,15 +12,18 @@ async def get_prefix(bot, message):
 
 prefix = '$'
 
+def return_prefix(guild):
+    with open('prefixes.json', 'r') as f:
+        prefixreturn = json.load(f)
+
+    return prefixreturn[str(guild)]
+
 client = commands.Bot(command_prefix = get_prefix)
 client.remove_command('help')
 
-spamwarn = 0
-messagecount = 0
-antispam = False
 msg = None
 
-colours = cycle([0x2f3136])
+colours = color_ = 0x2f3136
 
 conn = sqlite3.connect('base.db')
 c = conn.cursor()
@@ -33,23 +37,12 @@ c = conn.cursor()
 async def on_ready():
     print(f'{client.user.name} is online')
     await client.change_presence(activity=discord.Streaming(platform="Twitch", name="version 1.0 | ServerProtect", url="https://twitch.tv/#"))
-    #clear_count.start()
-    #spamawarn_count.start()
 
 @client.event
 async def on_message(message):
-    '''global messagecount, spamwarn
-    messagecount += 1
-    if messagecount >= 5:
-        if message.author != client.user:
-            if spamwarn <= 2:
-                await message.delete()
-                await message.channel.send("Stop spamming")
-                spamwarn += 1
-            else:
-                await message.delete()'''
-    
-    
+    global client
+    if client.user.mentioned_in(message):
+        await message.channel.send(f"Hello! I am ServerProtect, a bot that will protect your discord guild! My prefix is **{return_prefix(message.guild.id)}**")
     await client.process_commands(message)
 
 
@@ -127,9 +120,9 @@ async def helpdump(ctx):
 
 @client.command()
 @commands.has_guild_permissions(administrator=True)
-async def slowmode(ctx, time):
-    if time == 0:
-        await ctx.send(f"`Correct usage = {get_prefix}slowmode (time in seconds)")
+async def slowmode(ctx, time=None):
+    if time is None:
+        await ctx.send(f"Correct usage = {await client.get_prefix(ctx.message)}slowmode (time in seconds)")
     else:
         channel = ctx.message.channel
         await channel.edit(slowmode_delay=time)
@@ -138,7 +131,7 @@ async def slowmode(ctx, time):
 @client.command()
 async def help(ctx):
     global colours
-    em = discord.Embed(color=next(colours), title="ServerProtect | Help Menu")
+    em = discord.Embed(color=colours, title="ServerProtect | Help Menu")
     em.add_field(name="**General**", value="```mywarns```", inline=False)
     em.add_field(name="**Whitelist**", value="```globalban```", inline=False)
     em.add_field(name="**Checkers**", value="```userinfo, avatar```", inline=False)
@@ -335,15 +328,6 @@ async def evaluate(ctx, *, cmd):
     result = (await eval(f"{fn_name}()", env))
     await ctx.send(result)
 
-'''@tasks.loop(seconds=5)
-async def clear_count():
-    global messagecount
-    messagecount = 0
-
-@tasks.loop(seconds=20)
-async def spamawarn_count():
-    global spamwarn
-    spamwarn = 0'''
 
 class MyMenu(menus.Menu):
         global msg
@@ -385,6 +369,16 @@ async def lock(ctx):
 async def unlock(ctx):
     await ctx.channel.set_permissions(ctx.guild.default_role, send_messages=True)
     await ctx.send("This channel has been unlocked!")
+
+@client.command()
+@commands.has_guild_permissions(administrator=True)
+async def nuke(ctx):
+    oldchannel = ctx.channel
+    channelname = ctx.channel.name
+    await oldchannel.clone()
+    await oldchannel.delete()
+    newchannel = get(ctx.guild.text_channels, name=channelname)
+    await newchannel.send("This channel has been nuked!")
 
 @slowmode.error
 @kick.error
