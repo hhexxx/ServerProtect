@@ -29,7 +29,8 @@ conn = sqlite3.connect('base.db')
 c = conn.cursor()
 '''c.execute("""CREATE TABLE warns (
     id text,
-    reason text
+    reason text,
+    serverid text
     )""")'''
 
 
@@ -40,7 +41,6 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    global client
     if client.user.mentioned_in(message):
         await message.channel.send(f"Hello! I am ServerProtect, a bot that will protect your discord guild! My prefix is **{return_prefix(message.guild.id)}**")
     await client.process_commands(message)
@@ -50,7 +50,7 @@ async def on_message(message):
 async def on_guild_join(guild):
     f = open(f"C:\\Users\\Kacper\\Desktop\\ServerProtect\\configs\\{guild.id}.json", "w+")
     f.write("{}")
-    f.close
+    f.close()
     with open('prefixes.json') as f:
         prefixes = json.load(f)
 
@@ -107,6 +107,7 @@ for filename in os.listdir('./cogs'):
 
 
 @client.command()
+@commands.is_owner()
 async def helpdump(ctx):
     cog = client.get_cog('Commands')
     commands = cog.get_commands()
@@ -122,29 +123,30 @@ async def helpdump(ctx):
 @commands.has_guild_permissions(administrator=True)
 async def slowmode(ctx, time=None):
     if time is None:
-        await ctx.send(f"Correct usage = {await client.get_prefix(ctx.message)}slowmode (time in seconds)")
+        await ctx.send(f"Poprawne użycie = {await client.get_prefix(ctx.message)}slowmode (czas w sekundach)")
     else:
         channel = ctx.message.channel
         await channel.edit(slowmode_delay=time)
-        await ctx.send(f"Channel slowmode has been set to {time} seconds!")
+        await ctx.send(f"Slowmode ustawiony na {time} sekund!")
 
-@client.command()
+@client.command(aliases=['pomoc'])
 async def help(ctx):
     global colours
     em = discord.Embed(color=colours, title="ServerProtect | Help Menu", timestamp=ctx.message.created_at)
-    em.add_field(name="**General**", value="```mywarns```", inline=False)
+    em.add_field(name="**Ogólne**", value="```mywarns```", inline=False)
     em.add_field(name="**Whitelist**", value="```globalban```", inline=False)
-    em.add_field(name="**Checkers**", value="```userinfo, avatar```", inline=False)
-    em.add_field(name="**Administration**", value="```ban, kick, warn, clear, slowmode, setprefix```", inline=False)
+    em.add_field(name="**Sprawdzanie**", value="```userinfo, avatar```", inline=False)
+    em.add_field(name="**Administracyjne**", value="```ban, kick, warn, clear, setprefix```", inline=False)
+    em.add_field(name="**Kanałowe**", value="```zablokuj, odblokuj, nuke, slowmode```", inline=False)
     em.add_field(name="**Bot**", value="\n\n[SUPPORT](https://discord.gg/SgZ78P2)", inline=False)
-    em.set_footer(text=f'EXECUTED by {ctx.message.author}', icon_url=ctx.author.avatar_url)
+    em.set_footer(text=f'WYWOŁAŁ  {ctx.message.author}', icon_url=ctx.author.avatar_url)
     await ctx.send(embed=em)
 
 @client.command(aliases=['purge', 'cls'])
 @commands.has_guild_permissions(administrator=True)
 async def clear(ctx, num: int=None):
     if num is None:
-        await ctx.send("You need to input the number of messages you want to delete!")
+        await ctx.send("Musisz podać liczbe wiadomości których chcesz usunąć!")
     else:
         await ctx.message.delete()
         await ctx.channel.purge(limit=num)
@@ -153,36 +155,36 @@ async def clear(ctx, num: int=None):
 @commands.has_guild_permissions(administrator=True)
 async def ban(ctx, member: discord.Member, *, reason=None):
     if member is None:
-        await ctx.send("You need to input member you would like to ban!")
+        await ctx.send("Musisz podać osobę którą chcesz zbanować!")
     elif reason is None:
-        await ctx.send("You need to input a reason for the ban!")
+        await ctx.send("Musisz podać powód bana!")
     else:
         await ctx.guild.ban(member, reason=reason)
-        await ctx.send(f"User: {member.mention} has been banned for {reason}")
+        await ctx.send(f"Użytkownik {member.mention} został zbanowany za {reason}")
 
 
 @client.command()
 @commands.has_guild_permissions(administrator=True)
 async def unban(ctx, member: discord.Member):
     if member is None:
-        await ctx.send("You need to input a member to unban!")
+        await ctx.send("Musisz podać użytkownika do wyrzucenia!")
     else:
         await ctx.guild.unban(member)
-        await ctx.send(f"Unbanned " + member)
+        await ctx.send(f"Odbanowano " + member)
 
 @client.command()
 @commands.has_guild_permissions(administrator=True)
 async def kick(ctx, member: discord.Member):
     await ctx.guild.kick(member)
-    await ctx.send(f"{member.mention} has been kicked!")
+    await ctx.send(f"{member.mention} został wyrzucony z serwera!")
 
 @client.command()
 @commands.has_guild_permissions(administrator=True)
 async def globalban(ctx, member: discord.Member, *, reason=None):
     if member is None:
-        await ctx.send("You need to input a member to globally ban!")
+        await ctx.send("Musisz podać osobę którą chcesz zbanować!")
     elif reason is None:
-        await ctx.send("You need to input a reason for ban!")
+        await ctx.send("Musisz podać powód bana!")
     else:
         with open('whitelist.json', 'r') as f:
             whitelist = json.load(f)
@@ -190,22 +192,22 @@ async def globalban(ctx, member: discord.Member, *, reason=None):
             if len(whitelist[str(ctx.message.author.id)]) > 0:
                 c.execute(f"INSERT INTO global VALUES ('{member}', '{reason}')")
                 conn.commit()
-                await ctx.send(f"User {member.mention} has been globally banned for {reason}")
+                await ctx.send(f"Użytkownik {member.mention} został globalnie zbanowany za {reason}")
                 await ctx.guild.ban(member, reason=f"global ban. server reason = {reason}")
         except:
-            await ctx.send("You are not whitelisted to globally ban!")
+            await ctx.send("Nie masz whitelisty na global-banowanie!")
 
 @client.command()
 @commands.has_guild_permissions(administrator=True)
 async def warn(ctx, member: discord.Member=None, *, reason=None):
     if member is None:
-        await ctx.send("You need to input a member to warn!")
+        await ctx.send("Musisz podać osobe której chcesz dać ostrzeżenie!")
     elif reason is None:
-        await ctx.send("You need to input a reason for the warn!")
+        await ctx.send("Musisz podać powód ostrzeżenia!")
     else:
-        c.execute(f"INSERT INTO warns VALUES ('{member}', '{reason}')")
+        c.execute(f"INSERT INTO warns VALUES ('{member}', '{reason}', '{ctx.message.guild.id}')")
         conn.commit()
-        await ctx.send(f"User {member.mention} has been warned for {reason}")
+        await ctx.send(f"Użytkownik {member.mention} dostał ostrzeżenie. Powód: {reason}")
 
 
 @client.command()
@@ -213,12 +215,12 @@ async def mywarns(ctx):
     global colours
     outputlol = list()
     member = ctx.message.author
-    c.execute(f"SELECT reason from warns WHERE id='{member}'")
+    c.execute(f"SELECT reason from warns WHERE id='{member}' AND serverid='{ctx.message.guild.id}'")
     output = c.fetchall()
     if len(output) == 0:
-        Embed = discord.Embed(colour=colours, title="Warning system", timestamp=ctx.message.created_at)
-        Embed.add_field(name=f"Your warns", value="This user has no warns!", inline=False)
-        Embed.set_footer(text=f'EXECUTED BY {ctx.message.author}')
+        Embed = discord.Embed(colour=colours, title="System ostrzeżeń", timestamp=ctx.message.created_at)
+        Embed.add_field(name=f"Twoje ostrzeżenia", value="Ten użytkownik nie ma żadnych ostrzeżeń!", inline=False)
+        Embed.set_footer(text=f'WYWOŁAŁ  {ctx.message.author}')
         Embed.set_author(name="ServerProtect", url="https://hx54.xyz/", icon_url="https://cdn.discordapp.com/attachments/722621049698648136/722621130690658344/90688356-vector-flat-icon-of-lock-on-black-background.jpg")
         await ctx.send(embed=Embed)
     else:
@@ -230,8 +232,8 @@ async def mywarns(ctx):
             real.pop(1)
             outputlol.append(real[0])
         Embed = discord.Embed(colour=colours, title="Warning system")
-        Embed.add_field(name=f"Your warns", value=f"{', '.join(outputlol)}", inline=False)
-        Embed.set_footer(text=f'EXECUTED BY {ctx.message.author} • {ctx.message.created_at}')
+        Embed.add_field(name=f"Twoje warny", value=f"{', '.join(outputlol)}", inline=False)
+        Embed.set_footer(text=f'WYWOŁAŁ  {ctx.message.author} • {ctx.message.created_at}')
         Embed.set_author(name="ServerProtect", url="https://hx54.xyz/", icon_url="https://cdn.discordapp.com/attachments/722621049698648136/722621130690658344/90688356-vector-flat-icon-of-lock-on-black-background.jpg")
         await ctx.send(embed=Embed)
 
@@ -241,18 +243,18 @@ async def userinfo(ctx, member: discord.Member = None):
     roles = [role for role in member.roles]
     embed = discord.Embed(colour=discord.Colour.blue(), timestamp=ctx.message.created_at)
     
-    embed.set_author(name=f'User info - {member}', url="https://hx54.xyz/", icon_url="https://cdn.discordapp.com/attachments/722621049698648136/722621130690658344/90688356-vector-flat-icon-of-lock-on-black-background.jpg")
+    embed.set_author(name=f'Informacje Użytkownika - {member}', url="https://hx54.xyz/", icon_url="https://cdn.discordapp.com/attachments/722621049698648136/722621130690658344/90688356-vector-flat-icon-of-lock-on-black-background.jpg")
     embed.set_thumbnail(url=member.avatar_url)
-    embed.set_footer(text=f'EXECUTED BY {ctx.message.author}', icon_url=ctx.author.avatar_url)
+    embed.set_footer(text=f'WYWOŁAŁ {ctx.message.author}', icon_url=ctx.author.avatar_url)
 
     embed.add_field(name="ID:", value=member.id)
-    embed.add_field(name="Guild name:", value=member.display_name)
+    embed.add_field(name="Nazwa serwera:", value=member.display_name)
 
-    embed.add_field(name="Account created at:", value=member.created_at.strftime("%a, %#d %B %Y, %I:%M %p UTC"))
-    embed.add_field(name="Joined at:", value=member.joined_at.strftime("%a, %#d %B %Y, %I:%M %p UTC"))
+    embed.add_field(name="Data stworzenia konta:", value=member.created_at.strftime("%a, %#d %B %Y, %I:%M %p UTC"))
+    embed.add_field(name="Data dołączenia:", value=member.joined_at.strftime("%a, %#d %B %Y, %I:%M %p UTC"))
 
-    embed.add_field(name=f'Roles ({len(roles)})', value=" ".join([role.mention for role in roles]))
-    embed.add_field(name="Top role:", value=member.top_role.mention)
+    embed.add_field(name=f'Role ({len(roles)})', value=" ".join([role.mention for role in roles]))
+    embed.add_field(name="Najwyzsza rola:", value=member.top_role.mention)
 
     embed.add_field(name="Bot?", value=member.bot)
 
@@ -283,32 +285,10 @@ def insert_returns(body):
 @client.command()
 @commands.is_owner()
 async def evaluate(ctx, *, cmd):
-    """Evaluates input.
-    Input is interpreted as newline seperated statements.
-    If the last statement is an expression, that is the return value.
-    Usable globals:
-      - `bot`: the bot instance
-      - `discord`: the discord module
-      - `commands`: the discord.ext.commands module
-      - `ctx`: the invokation context
-      - `__import__`: the builtin `__import__` function
-    Such that `>eval 1 + 1` gives `2` as the result.
-    The following invokation will cause the bot to send the text '9'
-    to the channel of invokation and return '3' as the result of evaluating
-    >eval ```
-    a = 1 + 2
-    b = a * 2
-    await ctx.send(a + b)
-    a
-    ```
-    """
     fn_name = "_eval_expr"
-
     cmd = cmd.strip("` ")
-
     # add a layer of indentation
     cmd = "\n".join(f"    {i}" for i in cmd.splitlines())
-
     # wrap in async def body
     body = f"async def {fn_name}():\n{cmd}"
 
@@ -335,9 +315,9 @@ class MyMenu(menus.Menu):
         async def send_initial_message(self, ctx, channel):
             await ctx.message.delete()
             embed = discord.Embed(colour=discord.Colour.green(), timestamp=ctx.message.created_at)
-            embed.set_author(name=f'Poll - made by {ctx.message.author}', url="https://hx54.xyz/", icon_url="https://cdn.discordapp.com/attachments/722621049698648136/722621130690658344/90688356-vector-flat-icon-of-lock-on-black-background.jpg")
-            embed.add_field(name="Poll value: ", value=f"**{msg}**")
-            embed.set_footer(text=f'EXECUTED BY {ctx.message.author}', icon_url=ctx.author.avatar_url)
+            embed.set_author(name=f'Ankieta - stworzona przez {ctx.message.author}', url="https://hx54.xyz/", icon_url="https://cdn.discordapp.com/attachments/722621049698648136/722621130690658344/90688356-vector-flat-icon-of-lock-on-black-background.jpg")
+            embed.add_field(name="Treść ankiety: ", value=f"**{msg}**")
+            embed.set_footer(text=f'WYWOŁAŁ {ctx.message.author}', icon_url=ctx.author.avatar_url)
             return await channel.send(embed=embed)
 
         @menus.button('\N{WHITE HEAVY CHECK MARK}')
@@ -350,26 +330,26 @@ class MyMenu(menus.Menu):
 
 
 @client.command()
-async def poll(ctx, *, wiadom=None):
+async def ankieta(ctx, *, wiadom=None):
     global msg
     if wiadom != None:
         msg = wiadom
         m = MyMenu()
         await m.start(ctx)
     else:
-        await ctx.send("You need to input the poll value!")
+        await ctx.send("Musisz wpisać treść ankiety!")
 
 @client.command()
 @commands.has_guild_permissions(administrator=True)
-async def lock(ctx):
+async def zablokuj(ctx):
     await ctx.channel.set_permissions(ctx.guild.default_role, send_messages=False)
-    await ctx.send("This channel has been locked! Only the administrators have permission to send messages as of now!")
+    await ctx.send("Ten kanał został zablokowany! Od teraz tylko administracja może wysyłać wiadomości!")
 
 @client.command()
 @commands.has_guild_permissions(administrator=True)
-async def unlock(ctx):
+async def odblokuj(ctx):
     await ctx.channel.set_permissions(ctx.guild.default_role, send_messages=True)
-    await ctx.send("This channel has been unlocked!")
+    await ctx.send("Ten kanał został odblokowany!")
 
 @client.command()
 @commands.has_guild_permissions(administrator=True)
@@ -379,22 +359,22 @@ async def nuke(ctx):
     await oldchannel.clone()
     await oldchannel.delete()
     newchannel = get(ctx.guild.text_channels, name=channelname)
-    await newchannel.send("This channel has been nuked!")
+    await newchannel.send("Ten kanał został nukowany!")
 
 @client.command()
-async def stats(ctx):
+async def statystyki(ctx):
     onlineuser = 0
     for x in client.get_all_members():
         if str(x.status) != "offline":
             onlineuser += 1
     em = discord.Embed (
         color = colours,
-        title = "Bot's Statistics",
-        description = f"● <:bust_in_silhouette:731566170188284016> **Users: {len(client.users)}** \n\n ● <:file_folder:731566457678200854> **Guild: {len(client.guilds)}** \n\n ● <:green_circle:731573322554277899> **Total Online Users: {onlineuser}**",
+        title = "Statystyki bota",
+        description = f"● <:bust_in_silhouette:731566170188284016> **Użytkownicy: {len(client.users)}** \n\n ● <:file_folder:731566457678200854> **Serwery: {len(client.guilds)}** \n\n ● <:green_circle:731573322554277899> **Użytkowników online: {onlineuser}**",
         timestamp = ctx.message.created_at
     )
     em.set_thumbnail(url=client.user.avatar_url)
-    em.set_footer(text=f'EXECUTED BY {ctx.message.author}', icon_url=ctx.author.avatar_url)
+    em.set_footer(text=f'WYWOŁAŁ  {ctx.message.author}', icon_url=ctx.author.avatar_url)
     await ctx.send(embed=em)
 
 @slowmode.error
