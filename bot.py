@@ -131,12 +131,13 @@ async def slowmode(ctx, time=None):
 @client.command()
 async def help(ctx):
     global colours
-    em = discord.Embed(color=colours, title="ServerProtect | Help Menu")
+    em = discord.Embed(color=colours, title="ServerProtect | Help Menu", timestamp=ctx.message.created_at)
     em.add_field(name="**General**", value="```mywarns```", inline=False)
     em.add_field(name="**Whitelist**", value="```globalban```", inline=False)
     em.add_field(name="**Checkers**", value="```userinfo, avatar```", inline=False)
     em.add_field(name="**Administration**", value="```ban, kick, warn, clear, slowmode, setprefix```", inline=False)
     em.add_field(name="**Bot**", value="\n\n[SUPPORT](https://discord.gg/SgZ78P2)", inline=False)
+    em.set_footer(text=f'EXECUTED by {ctx.message.author}', icon_url=ctx.author.avatar_url)
     await ctx.send(embed=em)
 
 @client.command(aliases=['purge', 'cls'])
@@ -215,9 +216,9 @@ async def mywarns(ctx):
     c.execute(f"SELECT reason from warns WHERE id='{member}'")
     output = c.fetchall()
     if len(output) == 0:
-        Embed = discord.Embed(colour=colours, title="Warning system")
+        Embed = discord.Embed(colour=colours, title="Warning system", timestamp=ctx.message.created_at)
         Embed.add_field(name=f"Your warns", value="This user has no warns!", inline=False)
-        Embed.set_footer(text=f'EXECUTED BY {ctx.message.author} • {ctx.message.created_at}')
+        Embed.set_footer(text=f'EXECUTED BY {ctx.message.author}')
         Embed.set_author(name="ServerProtect", url="https://hx54.xyz/", icon_url="https://cdn.discordapp.com/attachments/722621049698648136/722621130690658344/90688356-vector-flat-icon-of-lock-on-black-background.jpg")
         await ctx.send(embed=Embed)
     else:
@@ -242,7 +243,7 @@ async def userinfo(ctx, member: discord.Member = None):
     
     embed.set_author(name=f'User info - {member}', url="https://hx54.xyz/", icon_url="https://cdn.discordapp.com/attachments/722621049698648136/722621130690658344/90688356-vector-flat-icon-of-lock-on-black-background.jpg")
     embed.set_thumbnail(url=member.avatar_url)
-    embed.set_footer(text=f'EXECUTED BY {ctx.message.author} • {ctx.message.created_at}', icon_url=ctx.author.avatar_url)
+    embed.set_footer(text=f'EXECUTED BY {ctx.message.author}', icon_url=ctx.author.avatar_url)
 
     embed.add_field(name="ID:", value=member.id)
     embed.add_field(name="Guild name:", value=member.display_name)
@@ -336,7 +337,7 @@ class MyMenu(menus.Menu):
             embed = discord.Embed(colour=discord.Colour.green(), timestamp=ctx.message.created_at)
             embed.set_author(name=f'Poll - made by {ctx.message.author}', url="https://hx54.xyz/", icon_url="https://cdn.discordapp.com/attachments/722621049698648136/722621130690658344/90688356-vector-flat-icon-of-lock-on-black-background.jpg")
             embed.add_field(name="Poll value: ", value=f"**{msg}**")
-            embed.set_footer(text=f'EXECUTED BY {ctx.message.author} • {ctx.message.created_at}', icon_url=ctx.author.avatar_url)
+            embed.set_footer(text=f'EXECUTED BY {ctx.message.author}', icon_url=ctx.author.avatar_url)
             return await channel.send(embed=embed)
 
         @menus.button('\N{WHITE HEAVY CHECK MARK}')
@@ -382,16 +383,19 @@ async def nuke(ctx):
 
 @client.command()
 async def stats(ctx):
+    onlineuser = 0
+    for x in client.get_all_members():
+        if str(x.status) != "offline":
+            onlineuser += 1
     em = discord.Embed (
         color = colours,
         title = "Bot's Statistics",
-        description = f"● <:bust_in_silhouette:731566170188284016> **Users: {len(client.users)}** \n\n ● <:file_folder:731566457678200854> **Guild: {len(client.guilds)}**",
+        description = f"● <:bust_in_silhouette:731566170188284016> **Users: {len(client.users)}** \n\n ● <:file_folder:731566457678200854> **Guild: {len(client.guilds)}** \n\n ● <:green_circle:731573322554277899> **Total Online Users: {onlineuser}**",
         timestamp = ctx.message.created_at
     )
     em.set_thumbnail(url=client.user.avatar_url)
     em.set_footer(text=f'EXECUTED BY {ctx.message.author}', icon_url=ctx.author.avatar_url)
     await ctx.send(embed=em)
-    
 
 @slowmode.error
 @kick.error
