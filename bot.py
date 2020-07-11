@@ -215,7 +215,7 @@ async def mywarns(ctx):
     c.execute(f"SELECT reason from warns WHERE id='{member}'")
     output = c.fetchall()
     if len(output) == 0:
-        Embed = discord.Embed(colour=next(colours), title="Warning system")
+        Embed = discord.Embed(colour=colours, title="Warning system")
         Embed.add_field(name=f"Your warns", value="This user has no warns!", inline=False)
         Embed.set_footer(text=f'EXECUTED BY {ctx.message.author} • {ctx.message.created_at}')
         Embed.set_author(name="ServerProtect", url="https://hx54.xyz/", icon_url="https://cdn.discordapp.com/attachments/722621049698648136/722621130690658344/90688356-vector-flat-icon-of-lock-on-black-background.jpg")
@@ -228,7 +228,7 @@ async def mywarns(ctx):
             real = second.split("',)")
             real.pop(1)
             outputlol.append(real[0])
-        Embed = discord.Embed(colour=next(colours), title="Warning system")
+        Embed = discord.Embed(colour=colours, title="Warning system")
         Embed.add_field(name=f"Your warns", value=f"{', '.join(outputlol)}", inline=False)
         Embed.set_footer(text=f'EXECUTED BY {ctx.message.author} • {ctx.message.created_at}')
         Embed.set_author(name="ServerProtect", url="https://hx54.xyz/", icon_url="https://cdn.discordapp.com/attachments/722621049698648136/722621130690658344/90688356-vector-flat-icon-of-lock-on-black-background.jpg")
@@ -379,6 +379,19 @@ async def nuke(ctx):
     await oldchannel.delete()
     newchannel = get(ctx.guild.text_channels, name=channelname)
     await newchannel.send("This channel has been nuked!")
+
+@client.command()
+async def stats(ctx):
+    em = discord.Embed (
+        color = colours,
+        title = "Bot's Statistics",
+        description = f"● <:bust_in_silhouette:731566170188284016> **Users: {len(client.users)}** \n\n ● <:file_folder:731566457678200854> **Guild: {len(client.guilds)}**",
+        timestamp = ctx.message.created_at
+    )
+    em.set_thumbnail(url=client.user.avatar_url)
+    em.set_footer(text=f'EXECUTED BY {ctx.message.author}', icon_url=ctx.author.avatar_url)
+    await ctx.send(embed=em)
+    
 
 @slowmode.error
 @kick.error
