@@ -79,16 +79,6 @@ async def on_member_join(member):
     else:
         await member.kick(member)
 
-@client.command()
-async def load(ctx, extension):
-    global client
-    client.load_extension(f'cogs.{extension}')
-
-@client.command()
-async def unload(ctx, extension):
-    global client
-    client.unload_extension(f'cogs.{extension}')
-
 
 @client.command()
 async def setprefix(ctx, prefix):
@@ -100,24 +90,6 @@ async def setprefix(ctx, prefix):
         json.dump(prefixes, f, indent=4)
 
     await ctx.send("Prefix set to " + prefix)
-
-for filename in os.listdir('./cogs'):
-    if filename.endswith('.py'):
-        client.load_extension(f'cogs.{filename[:-3]}')
-
-
-@client.command()
-@commands.is_owner()
-async def helpdump(ctx):
-    cog = client.get_cog('Commands')
-    commands = cog.get_commands()
-    times = 0
-    for c in commands:
-        times += 1
-    for x in range(times):
-        for c in commands:
-            await ctx.send(f'`{c.name}`')
-
 
 @client.command()
 @commands.has_guild_permissions(administrator=True)
@@ -136,7 +108,7 @@ async def help(ctx):
     em.add_field(name="**Ogólne**", value="```mywarns```", inline=False)
     em.add_field(name="**Whitelist**", value="```globalban```", inline=False)
     em.add_field(name="**Sprawdzanie**", value="```userinfo, avatar```", inline=False)
-    em.add_field(name="**Administracyjne**", value="```ban, kick, warn, clear, setprefix```", inline=False)
+    em.add_field(name="**Administracyjne**", value="```ban, kick, warn, removewarn, clear, setprefix```", inline=False)
     em.add_field(name="**Kanałowe**", value="```zablokuj, odblokuj, nuke, slowmode```", inline=False)
     em.add_field(name="**Bot**", value="\n\n[SUPPORT](https://discord.gg/SgZ78P2)", inline=False)
     em.set_footer(text=f'WYWOŁAŁ  {ctx.message.author}', icon_url=ctx.author.avatar_url)
@@ -282,7 +254,7 @@ def insert_returns(body):
         insert_returns(body[-1].body)
 
 
-@client.command()
+@client.command(aliases=['eval'])
 @commands.is_owner()
 async def evaluate(ctx, *, cmd):
     fn_name = "_eval_expr"
@@ -330,6 +302,7 @@ class MyMenu(menus.Menu):
 
 
 @client.command()
+@commands.cooldown(1, 120, commands.BucketType.user)
 async def ankieta(ctx, *, wiadom=None):
     global msg
     if wiadom != None:
@@ -359,7 +332,7 @@ async def nuke(ctx):
     await oldchannel.clone()
     await oldchannel.delete()
     newchannel = get(ctx.guild.text_channels, name=channelname)
-    await newchannel.send("Ten kanał został nukowany!")
+    await newchannel.send("Ten kanał został nukowany!", delete_after=10)
 
 @client.command()
 async def statystyki(ctx):
@@ -377,6 +350,28 @@ async def statystyki(ctx):
     em.set_footer(text=f'WYWOŁAŁ  {ctx.message.author}', icon_url=ctx.author.avatar_url)
     await ctx.send(embed=em)
 
+@client.command()
+@commands.has_guild_permissions(administrator=True)
+async def removewarn(ctx, member: discord.Member=None, *, warn=None):
+    if member and warn != None:
+        warn = str(warn)
+        c.execute(f"SELECT reason from warns WHERE id='{member}' AND reason='{warn}' AND serverid='{ctx.message.guild.id}'")
+        output = c.fetchall()
+        if len(output) != 0:
+            c.execute(f"DELETE from warns WHERE id='{member}' AND reason='{warn}' AND serverid='{ctx.message.guild.id}'")
+            conn.commit()
+            await ctx.send(f"Usunięto ostrzeżenie użytkownika {member.mention} o treści **{warn}**")
+        else:
+            await ctx.send("Ten użytkownik nie ma takie ostrzeżenia")
+    else:
+        if member is None:
+            await ctx.send("Musisz podać użytkownika któremu chcesz usunąć ostrzeżenie!")
+        elif warn is None:
+            await ctx.send("Musisz podać ostrzeżenie ktore chciał byś usunąć!")
+
+
+
+@ankieta.error
 @slowmode.error
 @kick.error
 @ban.error
@@ -385,5 +380,8 @@ async def statystyki(ctx):
 async def clear_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
         await ctx.send(error)
+    elif isinstance(error, commands.CommandOnCooldown):
+        errorstr = str(error).split('in')
+        await ctx.send("Spokojnie! Możesz znów użyć tej komendy za " + errorstr[2])
 
 client.run(info.info["token"])
