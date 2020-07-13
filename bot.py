@@ -88,16 +88,15 @@ async def on_member_join(member):
     with open('welcome-channel.json', 'r') as f:
         channel = json.load(f)
     kanalid = channel[str(member.guild.id)]
-    try:
-        if len(config[str(member.guild.id)]) > 0:
-            kanal = get(member.guild.text_channels, id=kanalid)
-            messagesend = config[str(member.guild.id)]
-            if "%nazwa%" in messagesend:
-                messagesend = messagesend.replace("%nazwa%", str(member.mention))
-                await kanal.send(messagesend)
-            else:
-                await kanal.send(messagesend)
-    except Exception as e:
+    if str(member.guild.id) in config:
+        kanal = get(member.guild.text_channels, id=kanalid)
+        messagesend = config[str(member.guild.id)]
+        if "%nazwa%" in messagesend:
+            messagesend = messagesend.replace("%nazwa%", str(member.mention))
+            await kanal.send(messagesend)
+        else:
+            await kanal.send(messagesend)
+    else:
         pass
                 
 
@@ -407,40 +406,34 @@ async def welcome(ctx, channel: discord.TextChannel=None, *, message=None):
     else:
         with open('welcome-config.json') as f:
             config = json.load(f)
-        try:
-            if len(config[str(ctx.guild.id)]) != 0:
-
-                #Remove old message
-                with open('welcome-config.json') as f:
-                    config = json.load(f)
-                config.pop(str(ctx.guild.id))
-                with open('welcome-config.json', 'w') as f:
-                    json.dump(config, f, indent=4)
-
-                #Add new message
-                with open('welcome-config.json', 'r') as f:
-                    config = json.load(f)
-                config[str(ctx.guild.id)] = message
-                with open('welcome-config.json', 'w') as f:
-                    json.dump(config, f, indent=4)
-
-                #Remove old channel
-                with open('welcome-channel.json', 'r') as f:
-                    channel1 = json.load(f)
-                channel1.pop(str(ctx.guild.id))
-                with open('welcome-channel.json', 'w') as f:
-                    json.dump(channel1, f, indent=4)
-
-                #add new channel
-                with open('welcome-channel.json', 'r') as f:
-                    channel1 = json.load(f)
-                ch = channel.id
-                channel1[str(ctx.guild.id)] = ch
-                with open('welcome-channel.json', 'w') as f:
-                    json.dump(channel1, f, indent=4)    
-
-                await ctx.send(f"Ustawiono nową wiadomość: {message}")
-        except KeyError:
+        if str(ctx.guild.id) in config:
+            #Remove old message
+            with open('welcome-config.json') as f:
+                config = json.load(f)
+            config.pop(str(ctx.guild.id))
+            with open('welcome-config.json', 'w') as f:
+                json.dump(config, f, indent=4)
+            #Add new message
+            with open('welcome-config.json', 'r') as f:
+                config = json.load(f)
+            config[str(ctx.guild.id)] = message
+            with open('welcome-config.json', 'w') as f:
+                json.dump(config, f, indent=4)
+            #Remove old channel
+            with open('welcome-channel.json', 'r') as f:
+                channel1 = json.load(f)
+            channel1.pop(str(ctx.guild.id))
+            with open('welcome-channel.json', 'w') as f:
+                json.dump(channel1, f, indent=4)
+            #add new channel
+            with open('welcome-channel.json', 'r') as f:
+                channel1 = json.load(f)
+            ch = channel.id
+            channel1[str(ctx.guild.id)] = ch
+            with open('welcome-channel.json', 'w') as f:
+                json.dump(channel1, f, indent=4)
+            await ctx.send(f"Ustawiono nową wiadomość: {message}")
+        else:
             with open('welcome-config.json', 'r') as f:
                 config = json.load(f)
             config[str(ctx.guild.id)] = message
