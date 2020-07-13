@@ -34,10 +34,19 @@ c = conn.cursor()
 
 uptime = time.time()
 
+statuses = None
+
 @client.event
 async def on_ready():
+    global statuses
+    statuses = cycle([f' {len(client.users)} użytkowników!', f' {len(client.guilds)} serwerów!', " ServerBot | Bot Ochronny"])
     print(f'{client.user.name} is online')
-    await client.change_presence(activity=discord.Streaming(platform="Twitch", name="version 1.0 | ServerProtect", url="https://twitch.tv/#"))
+    change_status.start()
+
+@tasks.loop(seconds=10)
+async def change_status():
+    global statuses
+    await client.change_presence(activity=discord.Streaming(platform="Twitch", name=next(statuses), url="https://twitch.tv/#"))
 
 @client.event
 async def on_message(message):
@@ -48,9 +57,6 @@ async def on_message(message):
 
 @client.event
 async def on_guild_join(guild):
-    f = open(f"C:\\Users\\Kacper\\Desktop\\ServerProtect\\configs\\{guild.id}.json", "w+")
-    f.write("{}")
-    f.close()
     with open('prefixes.json') as f:
         prefixes = json.load(f)
 
@@ -61,7 +67,6 @@ async def on_guild_join(guild):
 
 @client.event
 async def on_guild_remove(guild):
-    os.remove(f"C:\\Users\\Kacper\\Desktop\\ServerProtect\\configs\\{guild.id}.json")
     with open('prefixes.json', 'r') as f:
         prefixes = json.load(f)
 
@@ -97,15 +102,18 @@ async def on_member_join(member):
                 
 
 @client.command()
-async def setprefix(ctx, prefix):
-    with open('prefixes.json') as f:
-        prefixes = json.load(f)
-    prefixes[str(ctx.guild.id)] = prefix
+async def setprefix(ctx, prefix=None):
+    if prefix != None:
+        with open('prefixes.json') as f:
+            prefixes = json.load(f)
+        prefixes[str(ctx.guild.id)] = prefix
 
-    with open('prefixes.json', 'w') as f:
-        json.dump(prefixes, f, indent=4)
+        with open('prefixes.json', 'w') as f:
+            json.dump(prefixes, f, indent=4)
 
-    await ctx.send("Prefix set to " + prefix)
+        await ctx.send("Prefix set to " + prefix)
+    else:
+        await ctx.send("Musisz podać jaki prefix chcesz ustawić!")
 
 @client.command()
 @commands.has_guild_permissions(administrator=True)
@@ -127,7 +135,7 @@ async def help(ctx):
     em.add_field(name=":question: **Sprawdzanie**", value="```userinfo, avatar```", inline=False)
     em.add_field(name=":robot: **Administracyjne**", value="```ban, kick, warn, removewarn, clear, setprefix, welcome```", inline=False)
     em.add_field(name=":file_folder: **Kanałowe**", value="```zablokuj, odblokuj, nuke, slowmode```", inline=False)
-    em.add_field(name="**Bot**", value="\n\n[`SUPPORT`](https://discord.gg/SgZ78P2)", inline=False)
+    em.add_field(name="**Bot**", value="\n\n[`SUPPORT`](https://discord.gg/w6Px6YG)", inline=False)
     em.set_footer(text=f'WYWOŁAŁ  {ctx.message.author}', icon_url=ctx.author.avatar_url)
     await ctx.send(embed=em)
 
@@ -251,8 +259,7 @@ async def userinfo(ctx, member: discord.Member = None):
 
 @client.command()
 async def avatar(ctx, member: discord.Member=None):
-    if member is None:
-        member = ctx.message.author
+    member = ctx.message.author if not member else member
     await ctx.send(member.avatar_url)
 
 def insert_returns(body):
