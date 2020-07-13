@@ -1,6 +1,5 @@
-import discord, json, os, sqlite3, ast, info
+import discord, json, os, sqlite3, ast, info, datetime, time
 from discord.ext import commands, tasks, menus
-from datetime import datetime
 from itertools import cycle
 from discord.utils import get
 
@@ -33,6 +32,7 @@ c = conn.cursor()
     serverid text
     )""")'''
 
+uptime = time.time()
 
 @client.event
 async def on_ready():
@@ -42,7 +42,7 @@ async def on_ready():
 @client.event
 async def on_message(message):
     if client.user.mentioned_in(message):
-        await message.channel.send(f"Hello! I am ServerProtect, a bot that will protect your discord guild! My prefix is **{return_prefix(message.guild.id)}**")
+        await message.channel.send(f"Witam! Nazywam się ServerProtect I jestem botem który ochroni twój serwer podczas ataków nad nim! Mój prefix na tym serwerze to **{return_prefix(message.guild.id)}**")
     await client.process_commands(message)
 
 
@@ -67,7 +67,7 @@ async def on_guild_remove(guild):
 
     prefixes.pop(str(guild.id))
 
-    with open('prefixes.json', 'r') as f:
+    with open('prefixes.json', 'w') as f:
         json.dump(prefixes, f, indent=4)
 
 @client.event
@@ -78,7 +78,23 @@ async def on_member_join(member):
         pass
     else:
         await member.kick(member)
-
+    with open('welcome-config.json', 'r') as f:
+        config = json.load(f)
+    with open('welcome-channel.json', 'r') as f:
+        channel = json.load(f)
+    kanalid = channel[str(member.guild.id)]
+    try:
+        if len(config[str(member.guild.id)]) > 0:
+            kanal = get(member.guild.text_channels, id=kanalid)
+            messagesend = config[str(member.guild.id)]
+            if "%nazwa%" in messagesend:
+                messagesend = messagesend.replace("%nazwa%", str(member.mention))
+                await kanal.send(messagesend)
+            else:
+                await kanal.send(messagesend)
+    except Exception as e:
+        pass
+                
 
 @client.command()
 async def setprefix(ctx, prefix):
@@ -105,12 +121,13 @@ async def slowmode(ctx, time=None):
 async def help(ctx):
     global colours
     em = discord.Embed(color=colours, title="ServerProtect | Help Menu", timestamp=ctx.message.created_at)
-    em.add_field(name="**Ogólne**", value="```mywarns```", inline=False)
-    em.add_field(name="**Whitelist**", value="```globalban```", inline=False)
-    em.add_field(name="**Sprawdzanie**", value="```userinfo, avatar```", inline=False)
-    em.add_field(name="**Administracyjne**", value="```ban, kick, warn, removewarn, clear, setprefix```", inline=False)
-    em.add_field(name="**Kanałowe**", value="```zablokuj, odblokuj, nuke, slowmode```", inline=False)
-    em.add_field(name="**Bot**", value="\n\n[SUPPORT](https://discord.gg/SgZ78P2)", inline=False)
+    em.add_field(name="**:jigsaw: Prefix**", value=f"```{return_prefix(ctx.guild.id)}```", inline=False)
+    em.add_field(name="**:thumbsup: Ogólne**", value="```mywarns, statystyki```", inline=False)
+    em.add_field(name=":notepad_spiral: **Whitelist**", value="```globalban```", inline=False)
+    em.add_field(name=":question: **Sprawdzanie**", value="```userinfo, avatar```", inline=False)
+    em.add_field(name=":robot: **Administracyjne**", value="```ban, kick, warn, removewarn, clear, setprefix, welcome```", inline=False)
+    em.add_field(name=":file_folder: **Kanałowe**", value="```zablokuj, odblokuj, nuke, slowmode```", inline=False)
+    em.add_field(name="**Bot**", value="\n\n[`SUPPORT`](https://discord.gg/SgZ78P2)", inline=False)
     em.set_footer(text=f'WYWOŁAŁ  {ctx.message.author}', icon_url=ctx.author.avatar_url)
     await ctx.send(embed=em)
 
@@ -191,8 +208,8 @@ async def mywarns(ctx):
     output = c.fetchall()
     if len(output) == 0:
         Embed = discord.Embed(colour=colours, title="System ostrzeżeń", timestamp=ctx.message.created_at)
-        Embed.add_field(name=f"Twoje ostrzeżenia", value="Ten użytkownik nie ma żadnych ostrzeżeń!", inline=False)
-        Embed.set_footer(text=f'WYWOŁAŁ  {ctx.message.author}')
+        Embed.add_field(name=f"Twoje ostrzeżenia", value="Nie posiadach żadnych ostrzeżeń!", inline=False)
+        Embed.set_footer(text=f'WYWOŁAŁ {ctx.message.author}', icon_url=ctx.author.avatar_url)
         Embed.set_author(name="ServerProtect", url="https://hx54.xyz/", icon_url="https://cdn.discordapp.com/attachments/722621049698648136/722621130690658344/90688356-vector-flat-icon-of-lock-on-black-background.jpg")
         await ctx.send(embed=Embed)
     else:
@@ -213,7 +230,7 @@ async def mywarns(ctx):
 async def userinfo(ctx, member: discord.Member = None):
     member = ctx.message.author if not member else member
     roles = [role for role in member.roles]
-    embed = discord.Embed(colour=discord.Colour.blue(), timestamp=ctx.message.created_at)
+    embed = discord.Embed(colour=colours, timestamp=ctx.message.created_at)
     
     embed.set_author(name=f'Informacje Użytkownika - {member}', url="https://hx54.xyz/", icon_url="https://cdn.discordapp.com/attachments/722621049698648136/722621130690658344/90688356-vector-flat-icon-of-lock-on-black-background.jpg")
     embed.set_thumbnail(url=member.avatar_url)
@@ -327,23 +344,25 @@ async def odblokuj(ctx):
 @client.command()
 @commands.has_guild_permissions(administrator=True)
 async def nuke(ctx):
-    oldchannel = ctx.channel
     channelname = ctx.channel.name
-    await oldchannel.clone()
-    await oldchannel.delete()
+    await ctx.channel.clone()
+    await ctx.channel.delete()
     newchannel = get(ctx.guild.text_channels, name=channelname)
     await newchannel.send("Ten kanał został nukowany!", delete_after=10)
 
-@client.command()
+@client.command(aliases=['staty'])
 async def statystyki(ctx):
     onlineuser = 0
     for x in client.get_all_members():
         if str(x.status) != "offline":
             onlineuser += 1
+    current_time = time.time()
+    difference = int(round(current_time - uptime))
+    text = str(datetime.timedelta(seconds=difference))
     em = discord.Embed (
         color = colours,
         title = "Statystyki bota",
-        description = f"● <:bust_in_silhouette:731566170188284016> **Użytkownicy: {len(client.users)}** \n\n ● <:file_folder:731566457678200854> **Serwery: {len(client.guilds)}** \n\n ● <:green_circle:731573322554277899> **Użytkowników online: {onlineuser}**",
+        description = f"● <:bust_in_silhouette:731566170188284016> **Użytkownicy: {len(client.users)}** \n\n ● <:file_folder:731566457678200854> **Serwery: {len(client.guilds)}** \n\n ● <:green_circle:731573322554277899> **Użytkowników online: {onlineuser}** \n\n ● <:timer:732030489904283760> **Czas online: {text}**",
         timestamp = ctx.message.created_at
     )
     em.set_thumbnail(url=client.user.avatar_url)
@@ -369,6 +388,66 @@ async def removewarn(ctx, member: discord.Member=None, *, warn=None):
         elif warn is None:
             await ctx.send("Musisz podać ostrzeżenie ktore chciał byś usunąć!")
 
+@client.command()
+@commands.has_guild_permissions(administrator=True)
+async def welcome(ctx, channel: discord.TextChannel=None, *, message=None):
+    if channel is None and message is None:
+        await ctx.send(f"Witam! Teraz konfigurujesz wiadomość powitalną! wpisz {return_prefix(ctx.guild.id)}welcome wiadomość. Możesz użyć %nazwa% żeby miec nazwe użytkownika.")
+    elif channel is None:
+        await ctx.send("Musisz podać kanał!")
+    elif message is None:
+        await ctx.send("Musisz podać wiadomość powitalną!")
+    else:
+        with open('welcome-config.json') as f:
+            config = json.load(f)
+        try:
+            if len(config[str(ctx.guild.id)]) != 0:
+
+                #Remove old message
+                with open('welcome-config.json') as f:
+                    config = json.load(f)
+                config.pop(str(ctx.guild.id))
+                with open('welcome-config.json', 'w') as f:
+                    json.dump(config, f, indent=4)
+
+                #Add new message
+                with open('welcome-config.json', 'r') as f:
+                    config = json.load(f)
+                config[str(ctx.guild.id)] = message
+                with open('welcome-config.json', 'w') as f:
+                    json.dump(config, f, indent=4)
+
+                #Remove old channel
+                with open('welcome-channel.json', 'r') as f:
+                    channel1 = json.load(f)
+                channel1.pop(str(ctx.guild.id))
+                with open('welcome-channel.json', 'w') as f:
+                    json.dump(channel1, f, indent=4)
+
+                #add new channel
+                with open('welcome-channel.json', 'r') as f:
+                    channel1 = json.load(f)
+                ch = channel.id
+                channel1[str(ctx.guild.id)] = ch
+                with open('welcome-channel.json', 'w') as f:
+                    json.dump(channel1, f, indent=4)    
+
+                await ctx.send(f"Ustawiono nową wiadomość: {message}")
+        except KeyError:
+            with open('welcome-config.json', 'r') as f:
+                config = json.load(f)
+            config[str(ctx.guild.id)] = message
+            with open('welcome-config.json', 'w') as f:
+                json.dump(config, f, indent=4)
+
+            with open('welcome-channel.json', 'r') as f:
+                channel1 = json.load(f)
+            ch = channel.id
+            channel1[str(ctx.guild.id)] = ch
+            with open('welcome-channel.json', 'w') as f:
+                json.dump(channel1, f, indent=4)
+            
+            await ctx.send(f"Dodano nową wiadomość powitalną: {message}")
 
 
 @ankieta.error
@@ -377,9 +456,15 @@ async def removewarn(ctx, member: discord.Member=None, *, warn=None):
 @ban.error
 @unban.error
 @clear.error
-async def clear_error(ctx, error):
+@removewarn.error
+@warn.error
+@nuke.error
+@zablokuj.error
+@odblokuj.error
+@welcome.error
+async def command_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        await ctx.send(error)
+        await ctx.send("Ojoj! Nie masz permisji na to!")
     elif isinstance(error, commands.CommandOnCooldown):
         errorstr = str(error).split('in')
         await ctx.send("Spokojnie! Możesz znów użyć tej komendy za " + errorstr[2])
